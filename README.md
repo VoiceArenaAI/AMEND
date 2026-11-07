@@ -79,15 +79,18 @@ Only sentence-level punctuation at the start or end of a word is removed (`. , ;
 Requires Python 3.11+.
 
 ```bash
-uv pip install ./amend
+pip install amend-va
 # or
-pip install ./amend
+uv pip install amend-va
 ```
 
-For development inside this folder:
+The package installs as `amend-va` and is imported as `amend`.
+
+For development from a clone:
 
 ```bash
-cd amend
+git clone https://github.com/VoiceArenaAI/AMEND.git
+cd AMEND
 uv sync
 ```
 
@@ -213,3 +216,7 @@ If the judge's version is empty, the draft contributes its own length as edits a
 - **CER, not TER.** Unlike HTER, there is no shift operation: moving a phrase counts as a deletion plus an insertion.
 - **Deleting text costs every character.** Removing a long hallucinated passage is one select-and-delete for a person, but counts as one edit per character.
 - **A draft's `amend` can exceed 1** when the draft is much longer than the judge's version, for example when a tool appends a long generated answer.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

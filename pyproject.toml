@@ -1,8 +1,10 @@
 [project]
-name = "amend"
+name = "amend-va"
 version = "0.1.0"
-description = "AMEND: AMEND and AMEND@0: LLM-judge minimum-edit metric for dictation tools"
+description = "AMEND and AMEND@0: an LLM-judge minimum-edit metric for dictation tools"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "manasdhir976", email = "manas@joshtalks.com" }
 ]
@@ -13,9 +15,22 @@ dependencies = [
     "pandas>=3.1.1",
 ]
 
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/VoiceArenaAI/AMEND"
+Repository = "https://github.com/VoiceArenaAI/AMEND"
+
 [project.scripts]
 amend = "amend.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.8,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "amend"
