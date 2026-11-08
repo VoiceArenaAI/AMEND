@@ -7,7 +7,7 @@ import anthropic
 from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 from anthropic.types.messages.batch_create_params import Request
 
-MODEL = "claude-sonnet-5-5"
+MODEL = "claude-opus-5-5"
 EFFORT = "medium"
 MAX_TOKENS = 16000
 BATCH_CHUNK = 10000

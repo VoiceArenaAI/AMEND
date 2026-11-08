@@ -16,7 +16,7 @@ AMEND applies the same idea to dictation, with an LLM judge in the role of the h
 |---|---|---|
 | Output being scored | MT translation | Dictation tool's draft |
 | Ground truth | Reference translation | Intended text, plus the spoken text |
-| Who builds the targeted reference | Human annotator | LLM judge (`claude-sonnet-5-5`) |
+| Who builds the targeted reference | Human annotator | LLM judge (`claude-opus-5-5`) |
 | Edit rate | TER (word level, with shifts) | CER (character level, via `jiwer`) |
 
 ## How it works
@@ -45,16 +45,16 @@ Character edits are used rather than word edits because they track the user's ty
 
 - Misrecognised or wrong words ("weight" → "wait", "chronic" → "cron")
 - Missing or extra content of any length, including generated or hallucinated text
-- Filler words ("like", "you know", "um") that the intended text left out
-- Wrong names, numbers or dates, including misspelled names
-- Anything that must be typed exactly: code identifiers, file names, commands, field and config values, product names, emails, URLs ("calculate prorated amount" → `calculateProratedAmount`, "node 20 alpine" → `node:20-alpine`)
+- Filler words ("like", "you know", "um") that the intended text left out, including sentence-initial "Okay", "So", "Oh", "Well"
+- Wrong names, including misspelled names, and numbers or dates with the wrong value
+- Anything that must be typed exactly, including any digits in it: code identifiers, file names, commands, field and config values, versions in code, emails, URLs, product and proper names ("calculate prorated amount" → `calculateProratedAmount`, "node twenty alpine" → `node:20-alpine`)
 - Wrong or slang units ("512 megs" → "512 MB")
 
 ### What the judge leaves alone
 
 - Different wording with the same meaning: articles, singular/plural, tense, contractions, synonyms, word order
 - Punctuation, capitalisation, line breaks, bullets, numbered lists, markdown
-- Digits vs words, decimals vs fractions ("4" vs "four", "1.5" vs "1 1/2")
+- How ordinary numbers are written, since some dictation tools cannot write digits: words vs digits, decimals vs fractions, spoken separators, for amounts, quantities, dates, times, phone numbers and order/account/ticket numbers ("618 dollars and 40 cents" vs `$618.40`, "ER dash three three one two" vs `#ER-3312`). A wrong digit is still an error. Exact-text items above still need their digits.
 - Standard abbreviations ("tbsp", "lb", "mph", "Dr.")
 - Hyphenation and compounding of ordinary words, US vs UK spelling
 
@@ -169,7 +169,7 @@ amend data.csv -p apple claude wispr -o scored.csv
 | `-v, --version` | `v1` | prompt version |
 | `-m, --mode` | `sync` | `sync` or `batch` |
 | `-o, --out` | required | output CSV |
-| `--model` | `claude-sonnet-5-5` | judge model |
+| `--model` | `claude-opus-5-5` | judge model |
 | `--effort` | `medium` | judge effort level |
 | `--workers` | `8` | parallel requests in sync mode |
 | `--limit` | all rows | score only the first N rows |

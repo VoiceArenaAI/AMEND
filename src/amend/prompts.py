@@ -12,13 +12,17 @@ Fix these (they change the meaning, or the user would have to retype them):
 - Missing or extra content of any length. Add anything the INTENDED text says that the
   DRAFT is missing, and delete anything the tool added that is not in the INTENDED text
   (for example an answer it generated, invented content, or repeated text)
-- Filler words ("like", "you know", "um") that the INTENDED text left out
-- Wrong names, numbers or dates, including misspelled names
+- Filler words ("like", "you know", "um") that the INTENDED text left out, including
+  discourse words at the start of a sentence ("Okay", "OK", "So", "Oh", "Well",
+  "Oh, and") when the INTENDED text does not start that sentence with them
+- Wrong names, including misspelled names, and numbers or dates with the wrong value
+  (a different number or date, not the same one written differently)
 - Anything that must be written exactly: code identifiers, file names, commands, field
-  and config values, product names, emails and URLs. Make them match the INTENDED text
-  exactly ("calculate prorated amount" -> "calculateProratedAmount",
+  and config values, versions in code, emails, URLs, and product and proper names.
+  Make them match the INTENDED text exactly, including any digits in them
+  ("calculate prorated amount" -> "calculateProratedAmount",
   "start date" -> "start_date", "billing ts" -> "billing.ts",
-  "node 20 alpine" -> "node:20-alpine", "PG Bouncer" -> "PgBouncer")
+  "PG Bouncer" -> "PgBouncer", "node twenty alpine" -> "node:20-alpine")
 - A wrong unit, or an informal/slang unit ("512 megs" -> "512 MB")
 
 Do NOT fix these (same meaning, or only formatting):
@@ -27,8 +31,16 @@ Do NOT fix these (same meaning, or only formatting):
   "that handles" vs "that'd handle"), synonyms, paraphrases and word-order changes
   ("I'll mention" vs "I want to mention")
 - Punctuation, capitalization, line breaks, bullets, numbered lists, markdown
-- Numbers written as digits vs words, or as decimals vs fractions ("4" vs "four",
-  "1" vs "one", "$1,450" vs "fourteen fifty", "1.5" vs "1 1/2")
+- How ordinary numbers are written. Some dictation tools cannot write digits, so
+  numbers in words are acceptable, as are digits, decimals vs fractions, and spoken
+  separators ("4" vs "four", "$1,450" vs "fourteen fifty", "1.5" vs "1 1/2",
+  "$618.40" vs "618 dollars and 40 cents", "10:30 AM" vs "ten thirty AM"). This covers
+  amounts, quantities, dates, times, phone numbers, and order, account and ticket
+  numbers ("415-555-0147" vs "four one five, five five five, zero one four seven",
+  "#ER-3312" vs "ER dash three three one two"), as long as every digit and letter is
+  right. A wrong digit is still an error. It does not cover the exact-text items
+  above (code, file names, commands, versions in code, emails, URLs, product and
+  proper names), where digits must match.
 - Standard abbreviations ("tbsp" vs "tablespoons", "lb" vs "pound",
   "mph" vs "miles an hour", "Dr." vs "Doctor")
 - Hyphenation and compounding of ordinary words ("short-staffed" vs "short staffed")
@@ -38,7 +50,7 @@ Do NOT fix these (same meaning, or only formatting):
 Rules:
 - Leave every part of the DRAFT that does not need fixing exactly as it is.
 - When you insert or replace words, match the formatting style of the surrounding
-  DRAFT text.
+  DRAFT text, including writing numbers as words if the DRAFT does.
 - Make each fix as small as possible: replace one word rather than rewriting the
   sentence around it. But fix a missing or extra passage in full.
 - If the DRAFT is empty, "fixed" is the INTENDED text.
