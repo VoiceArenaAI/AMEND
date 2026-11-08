@@ -170,10 +170,12 @@ amend data.csv -p apple claude wispr -o scored.csv
 | `-m, --mode` | `sync` | `sync` or `batch` |
 | `-o, --out` | required | output CSV |
 | `--model` | `claude-opus-5-5` | judge model |
-| `--effort` | `medium` | judge effort level |
+| `--effort` | `max` | judge effort level |
 | `--workers` | `8` | parallel requests in sync mode |
 | `--limit` | all rows | score only the first N rows |
 | `--retries` | `3` | sync re-runs of failed drafts after the main run |
+| `--max-tokens` | `64000` | output token limit per request (sync requests are streamed) |
+| `--resume` | none | collect already submitted batch(es) by ID instead of submitting new ones |
 
 The output CSV is the input plus, for each prediction column:
 
@@ -200,6 +202,18 @@ A summary is printed, with AMEND pooled over all rows:
 | Price | standard | 50% of standard |
 | Speed | minutes | usually under an hour, up to 24 hours |
 | Refusals | rerun on a fallback model automatically | marked as failed |
+
+Batch mode prints the batch IDs as soon as they are submitted. If the process stops before the batches finish, the batches keep running on Anthropic's side (results are kept for 29 days), and you can collect them later by re-running the same command with `--resume`:
+
+```bash
+amend data.csv -p apple wispr -m batch -o scored.csv
+# batch msgbatch_01Abc... submitted with 1420 requests
+# to resume if interrupted, add: --resume msgbatch_01Abc...
+
+amend data.csv -p apple wispr -o scored.csv --resume msgbatch_01Abc...
+```
+
+Use the same input CSV, columns, `--limit` and package version as the original run. Each request ID carries a hash of its prompt, so results that don't match the current inputs are rejected instead of being assigned to the wrong draft.
 
 In both modes identical prompts are sent once, so the same draft from two tools, or for two speakers, is only paid for once.
 

@@ -4,7 +4,7 @@ import sys
 import pandas as pd
 
 from .api import score_dataframe
-from .judge import EFFORT, MODEL, Judge
+from .judge import EFFORT, MAX_TOKENS, MODEL, Judge
 from .metric import pooled
 
 
@@ -26,14 +26,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--workers", type=int, default=8, help="parallel requests in sync mode")
     ap.add_argument("--limit", type=int, default=None, help="score only the first N rows")
     ap.add_argument("--retries", type=int, default=3, help="sync re-runs of failed drafts after the main run")
+    ap.add_argument("--max-tokens", type=int, default=MAX_TOKENS, help="output token limit per request")
+    ap.add_argument("--resume", nargs="+", metavar="BATCH_ID", default=None,
+                    help="collect results of already submitted batch(es) instead of submitting new ones; "
+                    "use the same inputs and options as the original run")
     a = ap.parse_args(argv)
+    if a.resume:
+        a.mode = "batch"
 
     df = pd.read_csv(a.csv, dtype=str, keep_default_na=False)
     if a.spoken_col not in df.columns:
         ap.error(f"spoken text column {a.spoken_col!r} not found (set --spoken-col)")
     if a.limit:
         df = df.head(a.limit)
-    judge = Judge(model=a.model, effort=a.effort, workers=a.workers, verbose=True)
+    judge = Judge(model=a.model, effort=a.effort, max_tokens=a.max_tokens, workers=a.workers,
+                  verbose=True, resume_batches=a.resume)
     out = score_dataframe(df, a.pred_col, a.intended_col, a.spoken_col, a.version, a.mode, judge, a.retries)
     out.to_csv(a.out, index=False)
 

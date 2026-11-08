@@ -1,6 +1,6 @@
 [project]
 name = "amend-va"
-version = "0.2.0"
+version = "0.2.1"
 description = "AMEND and AMEND@0: an LLM-judge minimum-edit metric for dictation tools"
 readme = "README.md"
 license = "Apache-2.0"

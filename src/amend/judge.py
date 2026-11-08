@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sys
 import time
@@ -8,8 +9,8 @@ from anthropic.types.message_create_params import MessageCreateParamsNonStreamin
 from anthropic.types.messages.batch_create_params import Request
 
 MODEL = "claude-opus-5-5"
-EFFORT = "medium"
-MAX_TOKENS = 16000
+EFFORT = "max"
+MAX_TOKENS = 64000
 BATCH_CHUNK = 10000
 SCHEMA = {
     "type": "json_schema",
@@ -32,6 +33,10 @@ def _text(message) -> str | None:
         return None
 
 
+def _custom_id(index: int, prompt: str) -> str:
+    return f"r{index}-{hashlib.sha1(prompt.encode()).hexdigest()[:16]}"
+
+
 class Judge:
     def __init__(
         self,
@@ -42,6 +47,7 @@ class Judge:
         workers: int = 8,
         poll_seconds: int = 30,
         verbose: bool = False,
+        resume_batches: list[str] | None = None,
     ):
         self.model = model
         self.effort = effort
@@ -50,6 +56,7 @@ class Judge:
         self.workers = workers
         self.poll_seconds = poll_seconds
         self.verbose = verbose
+        self.resume_batches = list(resume_batches or [])
 
     def _log(self, msg: str) -> None:
         if self.verbose:
@@ -57,14 +64,15 @@ class Judge:
 
     def fix(self, prompt: str) -> str | None:
         try:
-            message = self.client.beta.messages.create(
+            with self.client.beta.messages.stream(
                 model=self.model,
                 max_tokens=self.max_tokens,
                 output_config={"effort": self.effort, "format": SCHEMA},
                 betas=["server-side-fallback-2026-07-01"],
                 fallbacks="default",
                 messages=[{"role": "user", "content": prompt}],
-            )
+            ) as stream:
+                message = stream.get_final_message()
         except anthropic.APIError as e:
             self._log(f"request failed: {type(e).__name__}: {e}")
             return None
@@ -98,32 +106,61 @@ class Judge:
             return list(ex.map(run, prompts))
 
     def _batch(self, prompts: list[str]) -> list[str | None]:
+        if self.resume_batches:
+            batch_ids = self.resume_batches
+            self.resume_batches = []
+            self._log(f"resuming {len(batch_ids)} batch(es): {' '.join(batch_ids)}")
+        else:
+            batch_ids = [self._submit(prompts, start) for start in range(0, len(prompts), BATCH_CHUNK)]
+            self._log(f"to resume if interrupted, add: --resume {' '.join(batch_ids)}")
         results: list[str | None] = [None] * len(prompts)
-        for start in range(0, len(prompts), BATCH_CHUNK):
-            chunk = prompts[start : start + BATCH_CHUNK]
-            requests = [
-                Request(
-                    custom_id=f"r{start + i}",
-                    params=MessageCreateParamsNonStreaming(
-                        model=self.model,
-                        max_tokens=self.max_tokens,
-                        output_config={"effort": self.effort, "format": SCHEMA},
-                        messages=[{"role": "user", "content": p}],
-                    ),
-                )
-                for i, p in enumerate(chunk)
-            ]
-            batch = self.client.messages.batches.create(requests=requests)
-            self._log(f"batch {batch.id} submitted with {len(requests)} requests")
-            while batch.processing_status != "ended":
-                time.sleep(self.poll_seconds)
-                batch = self.client.messages.batches.retrieve(batch.id)
-                c = batch.request_counts
-                self._log(f"batch {batch.id} {batch.processing_status} processing={c.processing} succeeded={c.succeeded} errored={c.errored}")
-            for item in self.client.messages.batches.results(batch.id):
-                idx = int(item.custom_id[1:])
-                if item.result.type == "succeeded":
-                    results[idx] = _text(item.result.message)
-                else:
-                    self._log(f"{item.custom_id} {item.result.type}")
+        for batch_id in batch_ids:
+            self._wait(batch_id)
+            self._collect(batch_id, prompts, results)
         return results
+
+    def _submit(self, prompts: list[str], start: int) -> str:
+        chunk = prompts[start : start + BATCH_CHUNK]
+        requests = [
+            Request(
+                custom_id=_custom_id(start + i, p),
+                params=MessageCreateParamsNonStreaming(
+                    model=self.model,
+                    max_tokens=self.max_tokens,
+                    output_config={"effort": self.effort, "format": SCHEMA},
+                    messages=[{"role": "user", "content": p}],
+                ),
+            )
+            for i, p in enumerate(chunk)
+        ]
+        batch = self.client.messages.batches.create(requests=requests)
+        self._log(f"batch {batch.id} submitted with {len(requests)} requests")
+        return batch.id
+
+    def _wait(self, batch_id: str) -> None:
+        batch = self.client.messages.batches.retrieve(batch_id)
+        while batch.processing_status != "ended":
+            c = batch.request_counts
+            self._log(f"batch {batch_id} {batch.processing_status} processing={c.processing} succeeded={c.succeeded} errored={c.errored}")
+            time.sleep(self.poll_seconds)
+            batch = self.client.messages.batches.retrieve(batch_id)
+        c = batch.request_counts
+        self._log(f"batch {batch_id} ended succeeded={c.succeeded} errored={c.errored} expired={c.expired} canceled={c.canceled}")
+
+    def _collect(self, batch_id: str, prompts: list[str], results: list[str | None]) -> None:
+        mismatched = 0
+        for item in self.client.messages.batches.results(batch_id):
+            index_part, _, digest = item.custom_id[1:].partition("-")
+            idx = int(index_part)
+            if idx >= len(prompts) or _custom_id(idx, prompts[idx]) != item.custom_id:
+                mismatched += 1
+                continue
+            if item.result.type == "succeeded":
+                results[idx] = _text(item.result.message)
+            else:
+                self._log(f"{item.custom_id} {item.result.type}")
+        if mismatched:
+            raise ValueError(
+                f"batch {batch_id}: {mismatched} results do not match the current inputs; "
+                "resume with the same CSV, columns, --limit and prompt version that created the batch"
+            )

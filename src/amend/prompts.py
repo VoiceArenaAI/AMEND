@@ -12,9 +12,11 @@ Fix these (they change the meaning, or the user would have to retype them):
 - Missing or extra content of any length. Add anything the INTENDED text says that the
   DRAFT is missing, and delete anything the tool added that is not in the INTENDED text
   (for example an answer it generated, invented content, or repeated text)
-- Filler words ("like", "you know", "um") that the INTENDED text left out, including
-  discourse words at the start of a sentence ("Okay", "OK", "So", "Oh", "Well",
-  "Oh, and") when the INTENDED text does not start that sentence with them
+- Filler words ("like", "you know", "um", "I mean") that the INTENDED text left out,
+  including discourse words at the start of a sentence ("Okay", "OK", "So", "Oh",
+  "Well", "Oh, and") when the INTENDED text does not start that sentence with them.
+  Only remove fillers: never add a filler or discourse word, even if the INTENDED
+  text has one that the DRAFT left out
 - Wrong names, including misspelled names, and numbers or dates with the wrong value
   (a different number or date, not the same one written differently)
 - Anything that must be written exactly: code identifiers, file names, commands, field
@@ -30,6 +32,10 @@ Do NOT fix these (same meaning, or only formatting):
   contraction changes that keep the meaning ("a" vs "the", "note" vs "notes",
   "that handles" vs "that'd handle"), synonyms, paraphrases and word-order changes
   ("I'll mention" vs "I want to mention")
+- Small grammar slips and spelling variants that do not change what the reader
+  understands: plural vs possessive ("league" vs "league's", "deadlines" vs
+  "deadline's"), "they" vs "they'd", "we" vs "we'd", "logs" vs "log", "holiday" vs
+  "holidays", and a missing or extra courtesy word ("please")
 - Punctuation, capitalization, line breaks, bullets, numbered lists, markdown
 - How ordinary numbers are written. Some dictation tools cannot write digits, so
   numbers in words are acceptable, as are digits, decimals vs fractions, and spoken
@@ -77,8 +83,12 @@ Self-corrections are lenient. If a difference between the DRAFT and the INTENDED
 text exists only because the DRAFT kept a self-correction from SPOKEN (for example
 it kept both the original and the corrected version, kept a retracted item together
 with the retraction, or kept cue words such as "no wait", "sorry", "actually no",
-"no, make it", "I mean", "scratch that", "take that off"), leave it unchanged.
+"no, make it", "scratch that", "take that off"), leave it unchanged.
 It is not an error.
+
+"I mean" is a self-correction cue only when it introduces a correction ("Tuesday,
+I mean Wednesday"). Anywhere else ("and I mean, fix every import") it is a filler
+and follows the filler rule above.
 
 This takes priority over the rule about extra content. Keep a kept self-correction
 whole: the original, the cue words and the correction. This applies even if the cue

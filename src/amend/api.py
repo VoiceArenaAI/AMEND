@@ -33,7 +33,7 @@ def score_arrays(
     fixed = judge.fix_many(prompts, mode=mode)
 
     def failed() -> list[int]:
-        return [k for k, f in enumerate(fixed) if f is None]
+        return [k for k, f in enumerate(fixed) if f is None or (not f and intendeds[k].strip())]
 
     for attempt in range(1, retries + 1):
         bad = failed()
@@ -42,12 +42,12 @@ def score_arrays(
         _log(judge, f"retry {attempt}/{retries}: re-running {len(bad)} failed drafts in sync mode")
         for k, f in zip(bad, judge.fix_many([prompts[k] for k in bad], mode="sync")):
             fixed[k] = f
-    bad = failed()
+    bad = set(failed())
     if bad:
         _log(judge, f"{len(bad)} drafts still failed after {retries} retries")
     out = []
-    for p, f in zip(preds, fixed):
-        if f is None:
+    for k, (p, f) in enumerate(zip(preds, fixed)):
+        if k in bad:
             out.append({"pred": p, "fixed": None, "edits": None, "chars": None, "amend": None})
             continue
         e, c = char_edits(p, f)
