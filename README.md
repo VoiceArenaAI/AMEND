@@ -16,7 +16,7 @@ AMEND applies the same idea to dictation, with an LLM judge in the role of the h
 |---|---|---|
 | Output being scored | MT translation | Dictation tool's draft |
 | Ground truth | Reference translation | Intended text, plus the spoken text |
-| Who builds the targeted reference | Human annotator | LLM judge (`claude-opus-5-5`) |
+| Who builds the targeted reference | Human annotator | LLM judge via OpenRouter (default `anthropic/claude-opus-5.5`) |
 | Edit rate | TER (word level, with shifts) | CER (character level, via `jiwer`) |
 
 ## How it works
@@ -37,7 +37,7 @@ Two numbers summarise a set of drafts:
   ```
 
   Pooling means long drafts weigh more than short ones, as with corpus-level WER and TER.
-- **AMEND@0**: the share of drafts that needed zero edits, i.e. drafts the user could send as-is.
+- **ZER (Zero Error Rate)**: the share of drafts that needed zero edits, i.e. drafts the user could send as-is. Higher is better.
 
 Character edits are used rather than word edits because they track the user's typing effort: fixing "test" to "tests" costs 1 character, not a whole word.
 
@@ -96,11 +96,30 @@ uv sync
 
 ### Authentication
 
-The judge calls the Anthropic API. Set your key before running:
+The judge runs through [OpenRouter](https://openrouter.ai), so any model OpenRouter serves can be the judge. Set your OpenRouter key before running:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+export OPENROUTER_API_KEY=sk-or-...
 ```
+
+Or pass it in Python: `Judge(api_key="sk-or-...")`.
+
+### Judge model and reasoning
+
+The default judge is `anthropic/claude-opus-5.5` at `max` reasoning effort. Any OpenRouter model slug and any reasoning level it supports can be used:
+
+```bash
+amend data.csv -p wispr -o scored.csv --model openai/gpt-6-astra --effort high
+```
+
+```python
+from amend import Judge, score_dataframe
+
+judge = Judge(model="google/gemini-4-argon", effort="medium")
+out = score_dataframe(df, ["wispr"], judge=judge)
+```
+
+`--effort` is passed to OpenRouter's `reasoning.effort` (`max`, `xhigh`, `high`, `medium`, `low`, `minimal`, `none`); use `default` to leave it to the model. The judge asks for structured JSON output, so pick a model that supports it. Scores from different judge models or effort levels are not directly comparable.
 
 ## Usage
 
@@ -169,12 +188,12 @@ amend data.csv -p apple claude wispr -o scored.csv
 | `-v, --version` | `v1` | prompt version |
 | `-m, --mode` | `sync` | `sync` or `batch` |
 | `-o, --out` | required | output CSV |
-| `--model` | `claude-opus-5-5` | judge model |
-| `--effort` | `max` | judge effort level |
+| `--model` | `anthropic/claude-opus-5.5` | any OpenRouter model slug |
+| `--effort` | `max` | reasoning effort, or `default` |
 | `--workers` | `8` | parallel requests in sync mode |
 | `--limit` | all rows | score only the first N rows |
 | `--retries` | `3` | sync re-runs of failed drafts after the main run |
-| `--max-tokens` | `64000` | output token limit per request (sync requests are streamed) |
+| `--max-tokens` | `64000` | output token limit per request, reasoning included |
 | `--resume` | none | collect already submitted batch(es) by ID instead of submitting new ones |
 
 The output CSV is the input plus, for each prediction column:
@@ -189,7 +208,7 @@ The output CSV is the input plus, for each prediction column:
 A summary is printed, with AMEND pooled over all rows:
 
 ```
-  pred_col  rows  failed  char_edits  chars  AMEND  AMEND@0
+  pred_col  rows  failed  char_edits  chars  AMEND     ZER
      wispr   750       0        1464 185012 0.0079   0.6627
      apple   749       1        4985 188412 0.0265   0.3044
 ```
@@ -198,19 +217,18 @@ A summary is printed, with AMEND pooled over all rows:
 
 | | Sync | Batch |
 |---|---|---|
-| How | parallel requests (`--workers`) | Anthropic Message Batches API |
-| Price | standard | 50% of standard |
+| How | parallel requests (`--workers`) | OpenRouter Batch API |
+| Price | standard | typically 50% of standard |
 | Speed | minutes | usually under an hour, up to 24 hours |
-| Refusals | rerun on a fallback model automatically | marked as failed |
 
-Batch mode prints the batch IDs as soon as they are submitted. If the process stops before the batches finish, the batches keep running on Anthropic's side (results are kept for 29 days), and you can collect them later by re-running the same command with `--resume`:
+Batch mode prints the batch IDs as soon as they are submitted. If the process stops before the batches finish, the batches keep running on OpenRouter (results are kept for 30 days), and you can collect them later by re-running the same command with `--resume`:
 
 ```bash
 amend data.csv -p apple wispr -m batch -o scored.csv
-# batch msgbatch_01Abc... submitted with 1420 requests
-# to resume if interrupted, add: --resume msgbatch_01Abc...
+# batch batch-1794408706-ywg6... submitted with 1420 requests
+# to resume if interrupted, add: --resume batch-1794408706-ywg6...
 
-amend data.csv -p apple wispr -o scored.csv --resume msgbatch_01Abc...
+amend data.csv -p apple wispr -o scored.csv --resume batch-1794408706-ywg6...
 ```
 
 Use the same input CSV, columns, `--limit` and package version as the original run. Each request ID carries a hash of its prompt, so results that don't match the current inputs are rejected instead of being assigned to the wrong draft.
@@ -219,13 +237,13 @@ In both modes identical prompts are sent once, so the same draft from two tools,
 
 ## Failed rows
 
-A draft is marked failed, with empty `fixed`, `edits`, `chars` and `amend`, when the judge refuses, the response is truncated or not valid JSON, or the batch request errors or expires. After the main run, in either mode, failed drafts are re-sent in sync mode up to `retries` times (default 3; `--retries` on the CLI, `retries=` in Python). Drafts that still fail are excluded from AMEND and AMEND@0 and counted in the `failed` column.
+A draft is marked failed, with empty `fixed`, `edits`, `chars` and `amend`, when the judge refuses, the response is truncated or not valid JSON, or the batch request errors or expires. After the main run, in either mode, failed drafts are re-sent in sync mode up to `retries` times (default 3; `--retries` on the CLI, `retries=` in Python). Drafts that still fail are excluded from AMEND and ZER and counted in the `failed` column.
 
 If the judge's version is empty, the draft contributes its own length as edits and 0 characters to the pooled AMEND, and its per-draft `amend` is 0 when the draft is also empty and 1 otherwise.
 
 ## Limitations
 
-- **Judge noise.** The judge's model doesn't accept `temperature`, so repeated runs can differ slightly. Measure run-to-run variance on a sample before reading small gaps between tools.
+- **Judge noise.** LLM judges are not fully deterministic, so repeated runs can differ slightly. Measure run-to-run variance on a sample before reading small gaps between tools.
 - **Casing is ignored.** Text is lowercased, so an identifier that differs only in case (`pgbouncer` vs `PgBouncer`) is not penalised.
 - **CER, not TER.** Unlike HTER, there is no shift operation: moving a phrase counts as a deletion plus an insertion.
 - **Deleting text costs every character.** Removing a long hallucinated passage is one select-and-delete for a person, but counts as one edit per character.

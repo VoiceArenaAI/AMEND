@@ -21,8 +21,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-v", "--version", choices=["v1"], default="v1", help="prompt version")
     ap.add_argument("-m", "--mode", choices=["sync", "batch"], default="sync")
     ap.add_argument("-o", "--out", required=True, help="output CSV")
-    ap.add_argument("--model", default=MODEL)
-    ap.add_argument("--effort", default=EFFORT)
+    ap.add_argument("--model", default=MODEL, help=f"any OpenRouter model slug [{MODEL}]")
+    ap.add_argument("--effort", default=EFFORT,
+                    help=f"reasoning effort passed to OpenRouter, e.g. max, xhigh, high, medium, low, minimal, none; "
+                    f"'default' leaves it to the model [{EFFORT}]")
     ap.add_argument("--workers", type=int, default=8, help="parallel requests in sync mode")
     ap.add_argument("--limit", type=int, default=None, help="score only the first N rows")
     ap.add_argument("--retries", type=int, default=3, help="sync re-runs of failed drafts after the main run")
@@ -39,8 +41,12 @@ def main(argv: list[str] | None = None) -> int:
         ap.error(f"spoken text column {a.spoken_col!r} not found (set --spoken-col)")
     if a.limit:
         df = df.head(a.limit)
-    judge = Judge(model=a.model, effort=a.effort, max_tokens=a.max_tokens, workers=a.workers,
-                  verbose=True, resume_batches=a.resume)
+    effort = None if a.effort == "default" else a.effort
+    try:
+        judge = Judge(model=a.model, effort=effort, max_tokens=a.max_tokens, workers=a.workers,
+                      verbose=True, resume_batches=a.resume)
+    except ValueError as e:
+        ap.error(str(e))
     out = score_dataframe(df, a.pred_col, a.intended_col, a.spoken_col, a.version, a.mode, judge, a.retries)
     out.to_csv(a.out, index=False)
 
@@ -52,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
             "char_edits": int(out[f"{c}_edits"].sum()),
             "chars": int(out[f"{c}_chars"].sum()),
             "AMEND": pooled(out[f"{c}_edits"].dropna(), out[f"{c}_chars"].dropna()),
-            "AMEND@0": (out[f"{c}_edits"].dropna() == 0).mean(),
+            "ZER": (out[f"{c}_edits"].dropna() == 0).mean(),
         }
         for c in a.pred_col
     ).sort_values("AMEND")

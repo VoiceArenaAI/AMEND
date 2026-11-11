@@ -1,7 +1,7 @@
 [project]
 name = "amend-va"
-version = "0.2.1"
-description = "AMEND and AMEND@0: an LLM-judge minimum-edit metric for dictation tools"
+version = "0.2.2"
+description = "AMEND and Zero Error Rate: an LLM-judge minimum-edit metric for dictation tools"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -10,9 +10,9 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic>=2.6.0",
     "jiwer>=4.0.0",
     "pandas>=3.1.1",
+    "requests>=2.31",
 ]
 
 classifiers = [
